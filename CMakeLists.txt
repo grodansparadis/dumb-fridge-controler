@@ -51,9 +51,10 @@ pico_sdk_init()
 
 add_executable(fridgectl
         fridgectl.c
+        lcd_1602_i2c.c
         )
 
-target_link_libraries(fridgectl pico_stdlib hardware_adc)
+target_link_libraries(fridgectl pico_stdlib hardware_adc hardware_i2c)
 
 # enable usb output, disable uart output
 pico_enable_stdio_usb(fridgectl 1)

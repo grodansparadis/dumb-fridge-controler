@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include "hardware/i2c.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include "pico/binary_info.h"
 #include "pico/stdlib.h"
 #include <math.h>
 #include <stdio.h>
@@ -19,6 +21,21 @@
 
 #define SETTEMP -18.0
 #define HYSTERESIS 3
+
+// LCD funcs
+void lcd_init(void);
+
+void i2c_write_byte(uint8_t val);
+void lcd_toggle_enable(uint8_t val);
+void lcd_send_byte(uint8_t val, int mode);
+void lcd_clear(void);
+void lcd_char(char val);
+void lcd_string(const char *s);
+void lcd_set_cursor(int line, int position);
+
+///////////////////////////////////////////////////////////////////////////////
+// readTemp
+//
 
 double readTemp(void) {
 
@@ -72,6 +89,10 @@ double readTemp(void) {
   return temp;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// main
+//
+
 int main() {
   stdio_init_all();
   printf("Fridge Controller, measuring Thermistor on GPIO26\n");
@@ -104,8 +125,25 @@ int main() {
   // Select ADC input 0 (GPIO26)
   adc_select_input(0);
 
+  // LCD
+  
+  // This example will use I2C0 on the default SDA and SCL pins (4, 5 on a Pico)
+  i2c_init(i2c_default, 10 * 1000);
+  gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+  gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+  gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+  gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+
+  // Make the I2C pins available to picotool
+  bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN,
+                             GPIO_FUNC_I2C));
+
+  lcd_init();
+
   // Work loop
   while (1) {
+
+    char buf[20];
 
     // if (gpio_get(COMPRESSOR_RELAY_PIN)) {
     //   printf("off\n");
@@ -125,6 +163,20 @@ int main() {
       gpio_put(COMPRESSOR_RELAY_PIN, true);
       gpio_put(LED_STATUS_PIN, true);
     }
+
+    lcd_clear();
+    lcd_set_cursor(0, 0);
+    sprintf(buf,"Temp: %.01f C", currtemp);
+    lcd_string(buf);
+    
+    lcd_set_cursor(1, 0);
+    if (gpio_get(COMPRESSOR_RELAY_PIN)) {
+      sprintf(buf,"Compressor: ON");
+    }
+    else {
+      sprintf(buf,"Compressor: OFF");
+    }
+    lcd_string(buf);
 
     sleep_ms(10000);
   }
