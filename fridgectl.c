@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "hardware/i2c.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include "hardware/i2c.h"
 #include "hardware/watchdog.h"
 #include "pico/binary_info.h"
 #include "pico/stdlib.h"
@@ -14,31 +14,41 @@
 #include <stdio.h>
 
 #define COMPRESSOR_RELAY_PIN 22
-#define POWER_NTC_PIN 28
-#define LED_STATUS_PIN 21
+#define POWER_NTC_PIN        28
+#define LED_STATUS_PIN       21
 
 #define NTC_B_VALUE 3450
 #define NTC_VOLTAGE 3.3
 
-#define SETTEMP -18.0
+#define SETTEMP    -18.0
 #define HYSTERESIS 5
 
 // LCD funcs
-void lcd_init(void);
+void
+lcd_init(void);
 
-void i2c_write_byte(uint8_t val);
-void lcd_toggle_enable(uint8_t val);
-void lcd_send_byte(uint8_t val, int mode);
-void lcd_clear(void);
-void lcd_char(char val);
-void lcd_string(const char *s);
-void lcd_set_cursor(int line, int position);
+void
+i2c_write_byte(uint8_t val);
+void
+lcd_toggle_enable(uint8_t val);
+void
+lcd_send_byte(uint8_t val, int mode);
+void
+lcd_clear(void);
+void
+lcd_char(char val);
+void
+lcd_string(const char *s);
+void
+lcd_set_cursor(int line, int position);
 
 ///////////////////////////////////////////////////////////////////////////////
 // readTemp
 //
 
-double readTemp(void) {
+double
+readTemp(void)
+{
 
   // Power NTC sensor
   gpio_put(POWER_NTC_PIN, true);
@@ -46,9 +56,8 @@ double readTemp(void) {
 
   // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
   const float conversion_factor = 3.3f / (1 << 12);
-  uint16_t result = adc_read();
-  printf("Raw value: 0x%03x, voltage: %f V\n", result,
-         result * conversion_factor);
+  uint16_t result               = adc_read();
+  printf("Raw value: 0x%03x, voltage: %f V\n", result, result * conversion_factor);
 
   // Use B-constant
   // ==============
@@ -60,13 +69,13 @@ double readTemp(void) {
   double Rinf = 10000.0 * exp(NTC_B_VALUE / -298.15);
 
   // V2 = adc * voltage/4096
-  double v = NTC_VOLTAGE * (double)result / 4096;
+  double v = NTC_VOLTAGE * (double) result / 4096;
 
   // R1 = (R2V - R2V2) / V2  R2= 10K, V = 5V,  V2 = adc * voltage/1024
   double resistance = (10000.0 * (NTC_VOLTAGE - v)) / v;
 
   // itemp = r;
-  double temp = ((double)NTC_B_VALUE) / log(resistance / Rinf);
+  double temp = ((double) NTC_B_VALUE) / log(resistance / Rinf);
   // itemp = log(r/Rinf);
   temp -= 273.15; // Convert Kelvin to Celsius
 
@@ -94,7 +103,9 @@ double readTemp(void) {
 // main
 //
 
-int main() {
+int
+main()
+{
   stdio_init_all();
   printf("Fridge Controller, measuring Thermistor on GPIO26\n");
 
@@ -134,7 +145,7 @@ int main() {
   adc_select_input(0);
 
   // LCD
-  
+
   // This example will use I2C0 on the default SDA and SCL pins (4, 5 on a Pico)
   i2c_init(i2c_default, 1 * 1000);
   gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
@@ -143,8 +154,7 @@ int main() {
   gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
 
   // Make the I2C pins available to picotool
-  bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN,
-                             GPIO_FUNC_I2C));
+  bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
 
   lcd_init();
 
@@ -172,7 +182,8 @@ int main() {
       // Less then setpoint
       gpio_put(COMPRESSOR_RELAY_PIN, false);
       gpio_put(LED_STATUS_PIN, false);
-    } else if (currtemp > (SETTEMP + HYSTERESIS)) {
+    }
+    else if (currtemp > (SETTEMP + HYSTERESIS)) {
       // Above (setpoint + hysteresis)
       gpio_put(COMPRESSOR_RELAY_PIN, true);
       gpio_put(LED_STATUS_PIN, true);
@@ -180,15 +191,15 @@ int main() {
 
     lcd_clear();
     lcd_set_cursor(0, 0);
-    sprintf(buf,"Temp: %.01f C", currtemp);
+    sprintf(buf, "Temp: %.01f C", currtemp);
     lcd_string(buf);
-    
+
     lcd_set_cursor(1, 0);
     if (gpio_get(COMPRESSOR_RELAY_PIN)) {
-      sprintf(buf,"Compressor: ON");
+      sprintf(buf, "Compressor: ON");
     }
     else {
-      sprintf(buf,"Compressor: OFF");
+      sprintf(buf, "Compressor: OFF");
     }
     lcd_string(buf);
 
