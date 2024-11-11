@@ -7,6 +7,7 @@
 #include "hardware/i2c.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include "hardware/watchdog.h"
 #include "pico/binary_info.h"
 #include "pico/stdlib.h"
 #include <math.h>
@@ -20,7 +21,7 @@
 #define NTC_VOLTAGE 3.3
 
 #define SETTEMP -18.0
-#define HYSTERESIS 3
+#define HYSTERESIS 5
 
 // LCD funcs
 void lcd_init(void);
@@ -85,7 +86,7 @@ double readTemp(void) {
   // Unpower NTC sensor
   gpio_put(POWER_NTC_PIN, false);
 
-  printf("Temperature: %f C\n", temp);
+  printf("Temperature: %.0f C\n", temp);
   return temp;
 }
 
@@ -96,6 +97,13 @@ double readTemp(void) {
 int main() {
   stdio_init_all();
   printf("Fridge Controller, measuring Thermistor on GPIO26\n");
+
+  if (watchdog_caused_reboot()) {
+    printf("Rebooted by Watchdog!\n");
+  }
+  else {
+    printf("Clean boot\n");
+  }
 
   // Init compressor pin
   gpio_init(COMPRESSOR_RELAY_PIN);
@@ -140,6 +148,10 @@ int main() {
 
   lcd_init();
 
+  // Enable the watchdog,
+  // second arg is pause on debug which means the watchdog will pause when stepping through code
+  watchdog_enable(10000, 1);
+
   // Work loop
   while (1) {
 
@@ -152,6 +164,8 @@ int main() {
     //   printf("on\n");
     //   gpio_put(COMPRESSOR_RELAY_PIN, true);
     // }
+
+    watchdog_update();
 
     double currtemp = readTemp();
     if (currtemp < SETTEMP) {
@@ -178,6 +192,6 @@ int main() {
     }
     lcd_string(buf);
 
-    sleep_ms(10000);
+    sleep_ms(5000);
   }
 }
